@@ -207,6 +207,7 @@ def create_model(adap_menu, diff_freq, diff_asso, xtra_feat):
 if __name__ == '__main__':
     # Input can be either a list of files or a directory.
     train_inputs = sys.argv[1:]
+    #print(os.path.dirname(os.path.realpath(__file__)))
 
     # Collect all training files first.
     tr_files = []
