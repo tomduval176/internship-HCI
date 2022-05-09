@@ -1,4 +1,5 @@
 import csv
+import os
 #For fasttext word embedding
 # import fasttext
 # import fasttext.util
@@ -146,7 +147,7 @@ def load_associations (menu, filename):
     return associations
 
 def save_menu (menu, filename):
-    f = open(filename, "w")
+    f = open(filename, "w+")
     for command in menu:
         f.write(command + "\n")
     f.close()

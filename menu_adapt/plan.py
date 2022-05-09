@@ -134,14 +134,15 @@ def step(state, oracle, weights, objective, use_network, network_name, timebudge
         results.append([state.menu_state.simplified_menu(), state.depth, exposed, round(avg_original_time,2), round(avg_time,2), round(avg_reward,2)])
     return avg_reward, results
 
+
 if not parallelised:
     result = step(root_state,my_oracle,weights, objective, use_network, vn_name, timebudget)
     bestmenu = result[1]
+
     # Get results and save output
     print("\nPlanning completed.\n\n[[Menu], Step #, Is Exposed, Original Avg Time, Final Avg Time, Reward]")
     for step in bestmenu:
-        print(step)
-        if step[2]: utility.save_menu(step[0], "output/adaptedmenu" + str(step[1]) + ".txt")
+        if step[2]: utility.save_menu(step[0], "output/adaptedmenu" + str(step[1]) + '.txt')
 elif parallelised: # Create and execute multiple instances
     parallel_instances = args.pp # Number of parallel instances
     state_copies = [deepcopy(root_state)] * parallel_instances # Create copies
@@ -164,4 +165,4 @@ elif parallelised: # Create and execute multiple instances
     print("\nPlanning completed.\n\n[[Menu], Step #, Is Exposed, Original Avg Time, Final Avg Time, Reward]")
     for step in bestmenu:
         print(step)
-        if step[2]: utility.save_menu(step[0], "output/adaptedmenu" + str(step[1]) + ".txt")
+        if step[2]: utility.save_menu(step[0], "output/adaptedmenu" + str(step[1]) + '.txt')
