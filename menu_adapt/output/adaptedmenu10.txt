@@ -1,0 +1,14 @@
+gloves
+shoes
+bikini
+skirt
+table
+----
+carrot
+----
+potato
+tomato
+onion
+----
+chair
+----

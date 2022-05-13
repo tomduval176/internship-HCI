@@ -215,7 +215,7 @@ if __name__ == '__main__':
         if os.path.isdir(tr_input):
             for path, directories, files in os.walk(tr_input):
                 for f in files:
-                    if f.endswith('.txt'):
+                    if f.startswith('results') and f.endswith('.txt'):
                         file_path = os.path.join(path, f)
                         tr_files.append(file_path)
 
