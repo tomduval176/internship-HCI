@@ -13,7 +13,7 @@ from adaptation import Adaptation
 from state import AdaptationType
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'value_network'))
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'policy_network'))
-from value_network_model import ValueNetwork
+from value_network.model import ValueNetwork
 
 
 # Rollout policy: random
@@ -59,7 +59,7 @@ class mcts():
         self.rollout = rollout_policy # Rollout policy used
         self.use_network = use_network
         if self.use_network and network_name:
-            self.vn = ValueNetwork("networks/"+network_name)
+            self.vn = ValueNetwork(network_name)
 
         
     def __str__(self):
