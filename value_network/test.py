@@ -23,6 +23,7 @@ with open(datafile) as f:
     for line in lines[0:10]:
         _, (source_menu, source_freq, source_asso), (target_menu, target_freq, target_asso), exposed = parse_row(line)
         samples.append([source_menu, source_freq, source_asso, target_menu, target_freq, target_asso, exposed])
+        print(samples)
 
 results = vn.predict_batch(samples)
 print('Num results', len(results))

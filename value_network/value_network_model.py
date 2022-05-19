@@ -43,7 +43,6 @@ class ValueNetwork:
         X2 = np.array(X2)
         X3 = np.array(X3)
         X4 = np.array(X4)
-
 #        print('Predicting ...', file=sys.stderr)
 #        t_ini = time()
 

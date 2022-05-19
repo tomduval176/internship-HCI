@@ -10,7 +10,7 @@ import time
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--menu", "-m", help="Input menu name", default="menu_5items.txt")
-parser.add_argument("--history", "-H", help="Click frequency file name", default="history3.csv")
+parser.add_argument("--history", "-H", help="Click frequency file name", default="history_5items.csv")
 parser.add_argument("--associations", "-a", help="Association list file name", default="associations_5items.txt")
 parser.add_argument("--inputdir", "-i", help="Input directory path", default="./input")
 parser.add_argument("--menuscount", "-mn", type=int, help="number of unique menus", default=50)
@@ -19,6 +19,7 @@ parser.add_argument("--adaptationcount", "-an", type=int, help="number of adapta
 parser.add_argument("--timebudget", "-t", type=int, help="time budget", default=12000)
 parser.add_argument("--maxdepth", "-d", type=int, help="maximum depth", default=8)
 parser.add_argument("--pumptype", "-p", help="Pump Type (PN/VN)", choices=["PN","VN"], default="VN")
+parser.add_argument("--network_file", "-nf", help="Network file")
 args = parser.parse_args()
 
 def simplify_menu(menu):
