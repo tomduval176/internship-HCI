@@ -215,7 +215,7 @@ if __name__ == '__main__':
         if os.path.isdir(tr_input):
             for path, directories, files in os.walk(tr_input):
                 for f in files:
-                    if f.startswith('results') and f.endswith('.txt'):
+                    if f.endswith('.txt'):
                         file_path = os.path.join(path, f)
                         tr_files.append(file_path)
 
@@ -252,4 +252,4 @@ if __name__ == '__main__':
     ]
 
     model.fit([X1, X2, X3, X4], [y1, y2, y3], validation_split=0.2, epochs=200, batch_size=32, callbacks=cbs)
-    model.save('value_network.h5')
+    model.save("value_network.h5")

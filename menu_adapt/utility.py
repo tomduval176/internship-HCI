@@ -1,10 +1,10 @@
 import csv
 import os
 #For fasttext word embedding
-import fasttext 
-import fasttext.util
+#import fasttext 
+#import fasttext.util
 #For word2vec embeddings
-from gensim.models import KeyedVectors
+#from gensim.models import KeyedVectors
 #To compute cosine similarity
 from scipy import spatial
 import math

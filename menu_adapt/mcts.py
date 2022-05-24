@@ -13,7 +13,7 @@ from adaptation import Adaptation
 from state import AdaptationType
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'value_network'))
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'policy_network'))
-from value_network.model import ValueNetwork
+from model import ValueNetwork
 
 
 # Rollout policy: random

@@ -60,7 +60,8 @@ if args.case is not None:
     freqdist, total_clicks, history = utility.load_click_distribution(currentmenu, "./input/history_" + args.case + ".csv")
     associations = utility.load_associations(currentmenu,"./input/associations_" + args.case + ".txt")
     vn_name = "value_network_" + args.case + ".h5"
-
+else:
+    vn_name = str(args.valuenet)
 # If different objective function is specified
 strategy = UserStrategy.AVERAGE
 if args.strategy == "serial":
