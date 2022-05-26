@@ -1,9 +1,11 @@
 tomato
-----
+chair
+potato
 gloves
 shoes
-potato
-chair
+----
+bikini
+table
 ----
 ----
 ----

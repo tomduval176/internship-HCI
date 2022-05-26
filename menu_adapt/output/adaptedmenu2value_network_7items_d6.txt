@@ -1,0 +1,11 @@
+tomato
+gloves
+potato
+shoes
+chair
+bikini
+table
+----
+----
+----
+----

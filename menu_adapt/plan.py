@@ -166,4 +166,6 @@ elif parallelised: # Create and execute multiple instances
     print("\nPlanning completed.\n\n[[Menu], Step #, Is Exposed, Original Avg Time, Final Avg Time, Reward]")
     for step in bestmenu:
         print(step)
-        if step[2]: utility.save_menu(step[0], "output/adaptedmenu" + str(step[1]) + '.txt')
+        if step[2]:
+            if use_network: utility.save_menu(step[0], "output/adaptedmenu" + str(step[1]) + args.valuenet[:-3] + '.txt')
+            else: use_network: utility.save_menu(step[0], "output/adaptedmenu" + str(step[1]) + '.txt')
