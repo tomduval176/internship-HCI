@@ -1,6 +1,7 @@
-from copy import deepcopy
+from copy import copy, deepcopy
 import operator
 import utility
+import itertools
 from enum import Enum
 from adaptation import Adaptation
 import math
@@ -30,6 +31,24 @@ class State():
         self.previous_seen_state = previous_seen_state
         self.depth = depth
         self.exposed = exposed
+    
+    #a recheck
+    #def __copy__(self):
+    #    cls = self.__class__
+    #    result = cls.__new__(cls)
+    #    result.__dict__.update(self.__dict__)
+    #    return result
+    #a recheck    
+    #def __deepcopy__(self, memo):
+    #    cls = self.__class__
+    #    result = cls.__new__(cls)
+    #    memo[id(self)] = result
+    #    for k, v in self.__dict__.items():
+    #        if k == "user_state" or k == "menu_state":
+    #            setattr(result, k, deepcopy(v, memo))
+    #        else:
+    #            setattr(result, k, copy(v))
+    #    return result 
 
     # Function called when an adaptation is made. The user state and menu state are updated accordingly
     def take_adaptation(self, adaptation, update_user = True):        
@@ -187,9 +206,19 @@ class MenuState():
                 simplified_menu.append(self.separator)
 
         return simplified_menu
-            
+    #def is_sep(self, item):
+    #    return item == self.separator
+    
+    #def simplified_menu(self, trailing_separators = True):
+    #    res = list(itertools.dropwhile(self.is_sep, self.menu))
+    #    if trailing_separators:
+    #        res.extend(itertools.repeat(self.separator, len(self.menu) - len(res)))
+    #    return res
+    
+           
 # Defines the user's interest and expertise
 class UserState():
+    # TODO: introduce the selection time of an item
     def __init__(self, freqdist, total_clicks, history):
         self.freqdist = freqdist # Normalised click frequency distribution (position-independent)
         self.total_clicks = total_clicks
@@ -207,6 +236,7 @@ class UserState():
 
 
     # For each item, returns a dictionary of activations.
+    # TODO: make a new function for the empirical evaluation
     def get_activations(self):
         activations = {} # Activation per target per location
         duration_between_clicks = 20.0 # Wait time between two clicks

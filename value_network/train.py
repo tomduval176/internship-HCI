@@ -143,7 +143,7 @@ def create_model(adap_menu, diff_freq, diff_asso, xtra_feat):
         m = tf.keras.layers.Dense(num_items//2)(m)
         m = tf.keras.Model(inputs=inputs, outputs=m)
         return m
-
+    #lets try to use the requirements to use the cuDNN implementation to see if it boosts peformance
     def freq_head(inputs):
         f = tf.keras.layers.Reshape((num_items, 1))(inputs)
         f = tf.keras.layers.LSTM(num_items, activation='relu')(f)
@@ -198,7 +198,7 @@ def create_model(adap_menu, diff_freq, diff_asso, xtra_feat):
     # Hereby I compose the almighty value network model.
     model = tf.keras.Model(inputs=[menu.input, freq.input, asso.input, input_feat], outputs=[serial, forage, recall])
     losses = {'serial_output': 'mse', 'forage_output': 'mse', 'recall_output': 'mse'}
-    model.compile(optimizer='rmsprop', loss=losses, metrics=['mse', 'mae'])
+    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=1e-3), loss=losses, metrics=['mse', 'mae'])
 
     return model
 
@@ -251,5 +251,5 @@ if __name__ == '__main__':
         tf.keras.callbacks.EarlyStopping(patience=20, restore_best_weights=True),
     ]
 
-    model.fit([X1, X2, X3, X4], [y1, y2, y3], validation_split=0.2, epochs=200, batch_size=32, callbacks=cbs)
+    model.fit([X1, X2, X3, X4], [y1, y2, y3], validation_split=0.2, epochs=100, batch_size=64, callbacks=cbs)
     model.save("value_network.h5")

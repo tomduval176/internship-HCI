@@ -3,7 +3,9 @@ import os
 #For fasttext word embedding
 #import fasttext 
 #import fasttext.util
+#from gensim.models.fasttext import load_facebook_model
 #For word2vec embeddings
+import gensim.downloader as api
 #from gensim.models import KeyedVectors
 #To compute cosine similarity
 from scipy import spatial
@@ -18,7 +20,7 @@ def load_click_distribution (menu, filename, normalize = True):
             history.append(row[0])
     return get_click_distribution(menu, history, normalize)
     
-
+# returns frequency distribution given a menu and history
 def get_click_distribution(menu, history, normalize = True):
     frequency = {}
     separator = "----"
@@ -40,61 +42,46 @@ def get_click_distribution(menu, history, normalize = True):
             frequency[command] = round(frequency[command] / total_clicks,3)
     return frequency, total_clicks, indexed_history
 
-# returns frequency distribution given a menu and history
-def get_frequencies(menu, history, normalize = True):
-    frequency = {}
-    total_clicks = len(history)
-    menu_items = list(filter(("----").__ne__, menu))
-    for command in menu_items:
-            frequency[command] = 0
-            
-    for row in history:
-        if row[0] not in list(frequency.keys()):
-            frequency[row[0]] = 1.
-        else: 
-            frequency[row[0]] += 1. 
-    
-    if normalize:
-        for command in list(frequency.keys()):
-            frequency[command] = round(frequency[command]/total_clicks, 3)
-    
-    return frequency, total_clicks
 
 # Computes associatons based on word-embedding models. For each menu item, a list of associated items is returned
 def compute_associations(menu):
+    #print(menu)
     # Load pre-trained FT model from wiki corpus
-    # ft = fasttext.load_model('../fastText/models/cc.en.300.bin')
-    # fasttext.util.reduce_model(ft, 100) 
+    #ft = load_facebook_model('https://s3.amazonaws.com/dl4j-distribution/GoogleNews-vectors-negative300.bin.gz')
+    #fasttext.util.reduce_model(ft, 100) 
     # Load pre-trained word2vec models. SO_vectors_200 = software engineering domain
     # model = KeyedVectors.load_word2vec_format('../fastText/models/SO_vectors_200.bin', binary=True)
-    model = KeyedVectors.load_word2vec_format('../fastText/models/GoogleNews-vectors-negative300.bin', binary=True)  
+    #model = KeyedVectors.load_word2vec_format('https://s3.amazonaws.com/dl4j-distribution/GoogleNews-vectors-negative300.bin.gz', binary=True)  
+    model = api.load("glove-wiki-gigaword-100")
     separator = "----"
     associations = {}
     associations_w2v = {}
     for command in menu:
         if command != separator:
-            associations[command] = {command:1.0}
+            #associations[command] = {command:1.0}
             associations_w2v[command] = {command:1.0}
 
     for i in menu:
         if i == separator: continue
         #Load word vector
-        vector1 = ft.get_word_vector(i)
-        vector1_word2vec = model.wv[i]
+        #vector1 = ft.get_word_vector(i)
+        vector1_word2vec = model[i]
         for j in menu:
             if i == j or j == separator: continue
-            vector2 = ft.get_word_vector(j)
-            vector2_word2vec = model.wv[j]
+            #vector2 = ft.get_word_vector(j)
+            vector2_word2vec = model[j]
             #Compute similarity score
-            score = 1 - spatial.distance.cosine(vector1, vector2)
+            #score = 1 - spatial.distance.cosine(vector1, vector2)
             score_word2vec = 1 - spatial.distance.cosine(vector1_word2vec, vector2_word2vec)
-            print(i + "," + j + ": ft = " + str(round(score,3)) + " w2v = " + str(round(score_word2vec,3)) )
-            associations[i][j] = score
+            #print(i + "," + j + " w2v = " + str(round(score_word2vec,3)) )
+            #associations[i][j] = score
             associations_w2v[i][j] = score_word2vec
-        
-    
-    # print (associations)
-    return associations
+            
+    sorted_associations_w2v = {}
+    for key_item, _ in associations_w2v.items():
+        sorted_associations_w2v[key_item] = {k: v for k, v in sorted(associations_w2v[key_item].items(), key=lambda item: item[1], reverse=True)}
+    #print(f"The associations that we want are this ones: {sorted_associations_w2v}")
+    return sorted_associations_w2v
 
     # >>> vector1 = ft.get_word_vector('print')
     # >>> vector2 = ft.get_word_vector('duplicate')
@@ -102,7 +89,7 @@ def compute_associations(menu):
     # >>> 1 - spatial.distance.cosine(vector1,vector2)
     # >>> 1 - spatial.distance.cosine(ft.get_word_vector('asparagus'),ft.get_word_vector('aubergine'))
 
-def load_activations (history):
+def load_activations(history):
     total_clicks = len(history)
     activations = {} # Activation per target per location
     duration_between_clicks = 20.0 # Wait time between two clicks
@@ -119,6 +106,34 @@ def load_activations (history):
         activations[item][position] += pow(time_difference, -0.5)
     return activations
 
+# in our example cats = food, clothes, animals, furniture
+def load_w2v_associations(menu):
+    categories = {"food": "tomato,potato,carrot,onion,beans".split(sep=","),
+                  "clothes": "gloves,shoes,bikini,skirt".split(sep=","),
+                  "animals": "rabbit,tiger,panda".split(sep=","),
+                  "furniture": "chair,sofa,table".split(sep=","),
+    }
+    w2v_associations = compute_associations(menu)
+    associations = {key_item: list(w2v_associations[key_item].keys())[1:]
+                    for key_item in w2v_associations.keys()}
+
+    for item in menu:
+        for k, v in categories.items():
+            if k == "food" and item in v:
+                associations[item] = associations[item][:4]
+            elif k == "clothes" and item in v:
+                associations[item] = associations[item][:3]
+            elif k == "furniture" and item in v:
+                associations[item] = associations[item][:2]
+            elif k == "animals" and item in v:
+                associations[item] = associations[item][:2]
+    print(associations)
+    return associations
+                
+# do it for a general case by taking into account the nb of items 
+def load_w2v_associations_general():
+    pass 
+    
 def load_associations (menu, filename):
     separator = "----"
     associations = {}
@@ -187,7 +202,7 @@ def get_sorted_frequencies(menu,frequency):
             sorted_frequencies.append(frequency[menu[k]])
     return sorted_frequencies
 
-    
+#function that can replace the two previous functions in one 
 def get_assoc_and_freq_list(state):
     separator = "----"
     associations = state.menu_state.associations
@@ -217,6 +232,7 @@ def get_assoc_and_freq_list(state):
             freq_list.append(frequency[menu[k]])
     return assoc_list, freq_list
 
+#get the index of the first item of a group
 def get_header_indexes(menu):
         header_indexes = []
         separator = "----"

@@ -1,14 +1,18 @@
+from readline import set_pre_input_hook
 import utility
 import sys
 import argparse
 from useroracle import UserStrategy, UserOracle
 import state 
 import useroracle
+import time
 import mcts
+import generation
 from state import State, MenuState, UserState
 import ray
 from copy import deepcopy
 import os
+import numpy as np
 
 # Setup command-line arguments and options
 parser = argparse.ArgumentParser()
@@ -51,6 +55,11 @@ pwd = os.chdir(os.path.dirname(__file__))
 
 # Set-up the menu instance
 currentmenu = utility.load_menu("./input/" + args.menu) # load menu items from text file
+#generate histories, users interests before setting up themenu instance 
+#for _ in range(8):
+#    generation.save_history(currentmenu)
+#for _ in range(4):
+#    generation.save_user(currentmenu)
 freqdist, total_clicks, history = utility.load_click_distribution(currentmenu, "./input/" + args.history) # load from user history (CSV file)
 associations = utility.load_associations(currentmenu,"./input/" + args.associations) # load assocation matrix from text file
 
@@ -104,7 +113,7 @@ print(f"Associations: {associations}")
 
 # Execute the MCTS planner and return sequence of adaptations
 @ray.remote
-def step(state, oracle, weights, objective, use_network, network_name, timebudget):
+def step_func(state, oracle, weights, objective, use_network, network_name, timebudget):
     results = []
     original_times = oracle.get_individual_rewards(state)[1]
     tree = mcts.mcts(oracle, weights, objective, use_network, network_name, time_limit=timebudget)
@@ -135,37 +144,96 @@ def step(state, oracle, weights, objective, use_network, network_name, timebudge
         results.append([state.menu_state.simplified_menu(), state.depth, exposed, round(avg_original_time,2), round(avg_time,2), round(avg_reward,2)])
     return avg_reward, results
 
-
-if not parallelised:
-    result = step(root_state,my_oracle,weights, objective, use_network, vn_name, timebudget)
-    bestmenu = result[1]
-
-    # Get results and save output
-    print("\nPlanning completed.\n\n[[Menu], Step #, Is Exposed, Original Avg Time, Final Avg Time, Reward]")
-    for step in bestmenu:
-        if step[2]: utility.save_menu(step[0], "output/adaptedmenu" + str(step[1]) + '.txt')
-elif parallelised: # Create and execute multiple instances
-    parallel_instances = args.pp # Number of parallel instances
-    state_copies = [deepcopy(root_state)] * parallel_instances # Create copies
-    result_ids = []
-    for i in range(parallel_instances):
-        statecopy = state_copies[i]
-        result_ids.append(step.remote(statecopy, my_oracle, weights, objective, use_network, vn_name, timebudget))
-    
-    results = ray.get(result_ids) # Use ray to run instances
-    bestresult = float('-inf')
-    bestmenu = menu_state.simplified_menu()
-
-    # # Get best result from parallel threads
-    for result in results:
-        if result[0] > bestresult:
-            bestresult = result[0] + 0.0
+# check that we compare the new selection time to the first one             
+def run_simulations(nb_sim, root_state, oracle, weights, use_network, network_name, time_budget):
+    success_rate = np.zeros(nb_sim)
+    for sim in range(nb_sim):
+        print(f"simulation nb: {sim}")
+        if not parallelised:
+            result = step_func(root_state, oracle, weights, use_network, network_name, time_budget)
             bestmenu = result[1]
-
-    # Get results and save output
-    print("\nPlanning completed.\n\n[[Menu], Step #, Is Exposed, Original Avg Time, Final Avg Time, Reward]")
-    for step in bestmenu:
-        print(step)
-        if step[2]:
-            if use_network: utility.save_menu(step[0], "output/adaptedmenu" + str(step[1]) + args.valuenet[:-3] + '.txt')
-            else: use_network: utility.save_menu(step[0], "output/adaptedmenu" + str(step[1]) + '.txt')
+            # Get results and save the output 
+            print("\nPlanning comleted.\n\n[[Menu], Step #, Is Exposed, Original Avg Time, Final Avg Time, Reward]")
+            for step in bestmenu:
+                print(step)
+                if step[2]: utility.save_menu(step[0], "output/adaptedmenu" + str(step[1]) + ".txt")
+                
+        elif parallelised:
+            parallel_instances = args.pp
+            state_copies = [deepcopy(root_state)] * parallel_instances
+            result_ids = []
+            for i in range(parallel_instances):
+                statecopy = state_copies[i]
+                result_ids.append(step_func.remote(statecopy, my_oracle, weights, objective, use_network, network_name, time_budget))
+                
+            results = ray.get(result_ids)
+            bestresult = float("-inf")
+            bestmenu = menu_state.simplified_menu()
+            
+            #Get best result from parallel threads
+            for result in results:
+                if result[0] > bestresult:
+                    bestresult = result[0] + 0.0
+                    bestmenu = result[1]
+                    
+            print("\nPlanning completed.\n\n[[Menu], Step #, Is Exposed, Original Avg Time, Final Avg Time, Reward]")
+            for step in bestmenu:
+                print(step)
+                # check direct the reward instead of the previous-new selection time
+                if step[3]-step[4]>0:
+                    success_rate[sim] = True
+                else:
+                    success_rate[sim] = False
+                if sim==nb_sim-1:
+                    print(f"The overall success_rate is {success_rate.mean()}")
+                if step[2]:
+                    utility.save_menu(step[0], "output/adaptedmenu" + str(step[1]) + ".txt")
+                    if use_network: utility.save_menu(step[0], "output/adaptedmenu" + str(step[1]) + args.valuenet[:-3] + '.txt')
+                    else: use_network: utility.save_menu(step[0], "output/adaptedmenu" + str(step[1]) + '.txt')
+                    
+def best_menu(root_state, oracle, weights, use_network, network_name, time_budget):
+    if not parallelised:
+        result = step_func(root_state,oracle,weights, objective, use_network, network_name, time_budget)
+        bestmenu = result[1]
+        print("\nPlanning completed. \n\n[[Menu], Step #, Is Exposed, Original Avg Time, Final Avg Time, Reward]")
+        for step in bestmenu:
+            print(step)
+            if step[2]: print(f"The best menu is: {step[0]}")
+    elif parallelised:
+        parallel_instances = args.pp
+        state_copies = [deepcopy(root_state)] * parallel_instances
+        result_ids = []
+        for i in range(parallel_instances):
+            statecopy = state_copies[i]
+            result_ids.append(step_func.remote(statecopy, oracle, weights, objective, use_network, network_name, time_budget))
+            
+        results = ray.get(result_ids)
+        bestresult = float('-inf')
+        bestmenu = menu_state.simplified_menu()
+        
+        for result in results:
+            if result[0] > bestresult:
+                bestresult = result[0] + 0.0
+                bestmenu = result[1]
+        
+        print("\nPlanning completed. \n\n[[Menu], Step #, Is Exposed, Original Avg Time, Final Avg Time, Reward]")
+        for step in bestmenu:
+            print(step)
+            if step[1] == 1:
+                next_menu = step[0]
+            if step[2]: 
+                print(f"The best menu is: {step[0]}")
+                print(f"Let's do this adaptation: {next_menu}")
+                #print(f"Lets do this adaptation: {results[0][0]}")
+            
+                    
+                    
+if __name__ == "__main__":
+    
+    #start = time.time()
+    #run_simulations(100, root_state, my_oracle, weights, use_network, vn_name, timebudget)
+    #end = time.time()
+    #print(end - start)
+    best_menu(root_state, my_oracle, weights, use_network, vn_name, timebudget)
+    
+                                    
