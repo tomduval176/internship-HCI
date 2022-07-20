@@ -1,5 +1,6 @@
 from copy import copy, deepcopy
 import operator
+from tkinter import N
 import utility
 import itertools
 from enum import Enum
@@ -59,7 +60,7 @@ class State():
 
         # Simulate the next user session by adding clicks
         if self.exposed and update_user:
-            new_state.user_state.update(menu = self.menu_state.menu, number_of_clicks = self.number_of_clicks)
+            new_state.user_state.update(menu = self.menu_state.menu, selection_time = self.user_state.selection_time, idx_session = self.user_state.idx_session)
         # Adapt the menu
 
         new_state.menu_state.menu = self.menu_state.adapt_menu(adaptation)
@@ -73,6 +74,7 @@ class MenuState():
     def __init__(self, menu, associations):
         self.menu = menu
         self.associations = associations
+        #print(f'MENU_STATE WHEN ERROR: {menu}')
         separatorsalready = menu.count(self.separator) # How many separators we have?
         # max_separators = int(min(math.ceil(len(self.menu)/1.5), 8))
         max_separators = 4
@@ -218,15 +220,17 @@ class MenuState():
            
 # Defines the user's interest and expertise
 class UserState():
-    # TODO: introduce the selection time of an item
-    def __init__(self, freqdist, total_clicks, history):
+    # TODO: introduce the selection time of the target item and the number of the session
+    def __init__(self, freqdist, total_clicks, history, selection_time, idx_session):
         self.freqdist = freqdist # Normalised click frequency distribution (position-independent)
         self.total_clicks = total_clicks
         self.history = history
+        self.idx_session = idx_session
+        self.selection_time = selection_time
         item_history = [row[0] for row in self.history]
 
         self.recall_practice = {} # Count of clicks at last-seen position (resets when position changes)
-        self.activations = self.get_activations()
+        self.activations = self.get_activations(self.selection_time, self.idx_session)
         for key,_ in self.freqdist.items():
             self.recall_practice[key] = item_history.count(key)
         if int(total_clicks) != len(self.history): print("HMM something wrong with the history")
@@ -237,38 +241,41 @@ class UserState():
 
     # For each item, returns a dictionary of activations.
     # TODO: make a new function for the empirical evaluation
-    def get_activations(self):
+    def get_activations(self, selection_time, idx_session):
         activations = {} # Activation per target per location
-        duration_between_clicks = 20.0 # Wait time between two clicks
+        #duration_between_clicks = 20.0 # Wait time between two clicks
+        duration_between_clicks = selection_time
         session_interval = 50.0 # Wait time between 2 sessions
         session_click_length = 20 # Clicks per session
         total_sessions = math.ceil(self.total_clicks/session_click_length) # Number of sessions so far
-        for i in range(0, int(self.total_clicks)):
-            session = math.ceil((i+1)/session_click_length) # Session index
-            item = self.history[i][0]
-            position = self.history[i][1]
-            if item not in activations.keys(): activations[item] = {position:0} # Item has not been seen yet. Add to dictionary
-            if position not in activations[item].keys(): activations[item][position] = 0 # Item not seen at this position yet. Add to item's dictionary
-            time_difference = duration_between_clicks*(self.total_clicks - i) + (total_sessions - session)*session_interval # Difference between time now and time of click
-            activations[item][position] += pow(time_difference, -0.5)
+        #for i in range(0, int(self.total_clicks)):
+        session = math.ceil((idx_session+1)/session_click_length) # Session index
+        item = self.history[idx_session][0]
+        position = self.history[idx_session][1]
+        if item not in activations.keys(): activations[item] = {position:0} # Item has not been seen yet. Add to dictionary
+        if position not in activations[item].keys(): activations[item][position] = 0 # Item not seen at this position yet. Add to item's dictionary
+        time_difference = duration_between_clicks*(self.total_clicks - idx_session) + (total_sessions - session)*session_interval # Difference between time now and time of click
+        activations[item][position] += pow(time_difference, -0.5)
         return activations
 
 
 
     # Method to update user state when the time-step is incremented (after taking an adaptation)
-    def update(self, menu, number_of_clicks = None):
-        # num_clicks = len(self.history)
-        #  if len(self.history) < number_of_clicks else number_of_clicks
-        # First we add new clicks
-        clicks_to_add = self.simple_history()[-number_of_clicks:]
-        
+    def update(self, menu, selection_time, idx_session):
+        num_clicks = len(self.history)
+        self.selection_time = selection_time
+        self.idx_session = idx_session
+        # First we add new_clicks
+        clicks_to_add = self.simple_history()[-num_clicks:]
+
         item_list = list(filter(("----").__ne__, menu)) # new menu without separator
-        for click in clicks_to_add:
-            self.history.append([click, item_list.index(click)])
+        click = clicks_to_add[idx_session]
+        #for click in clicks_to_add:
+        self.history.append([click, item_list.index(click)])
 
         # Next we update user expertise
         self.update_freqdist(menu)
-        self.activations = self.get_activations()
+        self.activations = self.get_activations(selection_time, idx_session)
 
     # Update frequency distribution based on new history    
     def update_freqdist(self, menu, normalize = True):

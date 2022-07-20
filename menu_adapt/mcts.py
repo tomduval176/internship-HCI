@@ -37,6 +37,7 @@ class TreeNode():
         self.state = state # Menu now
         self.parent = parent
         self.num_visits = 0 # For tracking n in UCT
+        self.max_regret = 0
         self.total_rewards = [0.0,0.0,0.0] # For tracking q in UCT
         self.children = {}
         self.fully_expanded = False # Is it expanded already?
@@ -148,7 +149,29 @@ class mcts():
             node.num_visits += 1
             node.total_rewards = [a+b for a,b in zip(node.total_rewards,rewards)]
             node = node.parent
+            
+    def compute_matrix(self, children):
+        data_matrix = {}
+        for i, child in enumerate(children):
+            data_matrix[i] = [child.total_rewards[i] for i in range(len(child.total_rewards))]
+        return data_matrix
 
+    def savage_criterion(self, children):
+        data = self.compute_matrix(children)
+        max_profits = []
+        for i in range(len(next(iter(data.values())))):
+            max_profits.append(max([value[i] for value in data.values()]))
+        regret_matrix = {}
+        for adapt, strat_values in data.items():
+            regret_matrix[adapt] = [max_profits[i] - strat_values[i] for i in range(len(strat_values))]
+        max_regrets = {}
+        for adapt, regrets in regret_matrix.items():
+            max_regrets[adapt] = max(regrets)
+        minimal_max_regret = min(max_regrets.values())
+        best_child_idx = [k for k, v in max_regrets.items() if v == minimal_max_regret]
+        return max_regrets, best_child_idx
+        
+            
     # Pick best child as next state
     def get_best_child(self, node, exploration_const):
         best_value = float("-inf")
@@ -156,17 +179,32 @@ class mcts():
         # return argmax(customFunction(node, frequencies, associations))
         children = list(node.children.values())
         random.shuffle(children)
-        for child in children:
-            # node value using UCT
-            total_reward = self.compute_reward(child.total_rewards)
-            node_value = total_reward/child.num_visits + exploration_const * math.sqrt(math.log(node.num_visits) / child.num_visits)
+        #print("SUCHHHHHHHHH")
+        if self.objective == "SAVAGE":
+            max_regrets, idx_best_childs = self.savage_criterion(children)
+            idx_best_child = idx_best_childs[0]
+            node_value = max_regrets[idx_best_child] / children[idx_best_child].num_visits + exploration_const * math.sqrt(math.log(node.num_visits) / children[idx_best_child].num_visits)
             
             if node_value > best_value:
                 best_value = node_value
-                best_node = child
-
+                best_node = children[idx_best_child]
+                #print(max_regrets[idx_best_child])
+                best_node.max_regret = max_regrets[idx_best_child]
+                #print(best_node.max_regrets)
+        else:
+            for child in children:
+                # node value using UCT
+                
+                total_reward = self.compute_reward(child.total_rewards)
+                node_value = total_reward/child.num_visits + exploration_const * math.sqrt(math.log(node.num_visits) / child.num_visits)
+                
+                if node_value > best_value:
+                    best_value = node_value
+                    best_node = child
+        #print("PULAAAAAAAAA")
         return best_node
 
+    
     def compute_reward(self,total_rewards):
         if self.objective == "AVERAGE":
             total_reward = sum([a*b for a,b in zip(self.weights, total_rewards)]) # Take average reward 

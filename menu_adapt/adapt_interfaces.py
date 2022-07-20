@@ -7,11 +7,11 @@ import mcts
 import utility
 from useroracle import UserStrategy, UserOracle
 from state import State, MenuState, UserState
-import tkinter as tk
+from tkinter import font
+import tkinter as tk 
 from tk_tools import ButtonGrid
 
-
-LARGE_FONT = ('Verdana', 12)
+#LARGE_FONT = ('Helvetica', 20)
 parser = argparse.ArgumentParser()
 parser.add_argument("--menu", "-m", help="Input menu name", default="menu_10items.txt")
 parser.add_argument("--history", "-H", help="Click frequency file name", default="history_10items.csv")
@@ -25,7 +25,7 @@ parser.add_argument("--pp", type=int, help="number of parallel processes", defau
 parser.add_argument("--usenetwork", "-nn", help="Use neural network", action='store_true' )
 parser.add_argument("--valuenet","-vn",help="Value network name")
 parser.add_argument("--case", "-c", help="Use case e.g. 5items, 10items, toy (combination of menu, assoc, history)")
-parser.add_argument("--objective", "-O", help="Objective to use", choices = ["average","optimistic","conservative"], default="average")
+parser.add_argument("--objective", "-O", help="Objective to use", choices = ["average","optimistic","conservative", "savage"], default="average")
 #parser.add_argument("--menu", "-m", help="The future menu displayed", type=str)
 args = parser.parse_args()
 
@@ -87,20 +87,20 @@ elif strategy == UserStrategy.RECALL:
     weights = [0.0, 0.0, 1.0]
 
 # Intialise the root state using the input menu, associations, and user history
-menu_state = MenuState(currentmenu, associations)
-user_state = UserState(freqdist, total_clicks, history)
-root_state = State(menu_state,user_state, exposed=True)
-my_oracle = UserOracle(maxdepth, associations=menu_state.associations)
-completion_times = my_oracle.get_individual_rewards(root_state)[1] # Initial completion time for current menu
-avg_time = sum([a * b for a, b in zip(weights, completion_times)])
+#menu_state = MenuState(currentmenu, associations)
+#user_state = UserState(freqdist, total_clicks, history, 5.0)
+#root_state = State(menu_state,user_state, exposed=True)
+#my_oracle = UserOracle(maxdepth, associations=menu_state.associations)
+#completion_times = my_oracle.get_individual_rewards(root_state)[1] # Initial completion time for current menu
+#avg_time = sum([a * b for a, b in zip(weights, completion_times)])
 parallelised = False if args.nopp else True
 
 # Start the planner
 ray.init()
-print(f"Planning started. Strategy: {strategy}. Parallelisation: {parallelised}. Neural Network: {use_network}.")
-print(f"Original menu: {menu_state.simplified_menu()}. Average selection time: {round(avg_time,2)} seconds")
-print(f"User Interest (normalised): {freqdist}")
-print(f"Associations: {associations}")
+#print(f"Planning started. Strategy: {strategy}. Parallelisation: {parallelised}. Neural Network: {use_network}.")
+#print(f"Original menu: {menu_state.simplified_menu()}. Average selection time: {round(avg_time,2)} seconds")
+#print(f"User Interest (normalised): {freqdist}")
+#print(f"Associations: {associations}")
 
 # Execute the MCTS planner and return sequence of adaptations
 @ray.remote
@@ -126,6 +126,11 @@ def step_func(state, oracle, weights, objective, use_network, network_name, time
             avg_reward = min(rewards) # Take minimum; add penalty if negative
             avg_time = max(times)
             avg_original_time = max(original_times)
+        elif objective == "SAVAGE":
+            avg_reward = best_child.max_regret 
+            print(f"max regret of the best child: {avg_reward}")
+            avg_time = max(times)
+            avg_original_time = max(original_times)
             
         #avg_reward = sum([a * b for a, b in zip(weights, rewards)])
         #avg_time = sum([a * b for a, b in zip(weights, times)])
@@ -136,6 +141,7 @@ def step_func(state, oracle, weights, objective, use_network, network_name, time
     return avg_reward, results
 
 def best_adaptation(root_state, oracle, weights, use_network, network_name, time_budget):
+    print(f'selection_time in the step function:{root_state.user_state.selection_time}')
     if not parallelised:
         result = step_func(root_state,oracle,weights, objective, use_network, network_name, time_budget)
         bestmenu = result[1]
@@ -153,7 +159,7 @@ def best_adaptation(root_state, oracle, weights, use_network, network_name, time
             
         results = ray.get(result_ids)
         bestresult = float('-inf')
-        bestmenu = menu_state.simplified_menu()
+        bestmenu = root_state.menu_state.simplified_menu()
         
         for result in results:
             if result[0] > bestresult:
@@ -203,7 +209,8 @@ class Root(tk.Tk):
         
 
 class TargetItemPage(tk.Frame):
-        
+    
+    #number_of_clicks = 20
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
         self.menu = list(filter(("----").__ne__, currentmenu))
@@ -212,29 +219,53 @@ class TargetItemPage(tk.Frame):
         self.display_time_target.set(time.time())
         self.select_time_target = tk.DoubleVar()
         self.select_time_target.set('0')
-        label = tk.Label(self, text='TARGET1', font= LARGE_FONT)
+        label = tk.Label(self, text='TARGET')
         label.pack()
-        self.random_item = tk.StringVar()
-        self.random_item.set(random.choice(self.menu))
-        self.button = tk.Button(self, text=self.random_item.get(),
+        #self.random_item = tk.StringVar()
+        #self.random_item.set(random.choice(self.menu))
+        self.targets_history = self.simple_history()[-20:]
+        self.idx_session = 1
+        self.target_item = tk.StringVar()
+        self.target_item.set(self.targets_history[1])
+        test_font = font.Font(size=20)
+        self.button = tk.Button(self, text=self.target_item.get(),
                            command=lambda: [controller.show_frame(MenuPage), self.awareness_time(), self.update_target(controller)])
         self.button.pack()
+        
+    def simple_history(self):
+        return [row[0] for row in self.history]
          
     def awareness_time(self):
         self.select_time_target.set(time.time())
         self.select_time_target.set(time.time() - self.display_time_target.get())
-        print(f"Time to become aware of the target item: {self.select_time_target.get()}")
+        #print(f"Time to become aware of the target item: {self.select_time_target.get()}")
         
     def update_target(self, controller):
-        print(f"LEN HISTORY BEFORE: {len(self.history)}")
-        print(self.menu)
-        print(f'The target is: {self.random_item.get()}')
-        self.history.append([self.random_item.get(), list(filter(("----").__ne__, currentmenu)).index(self.random_item.get())])
-        print(f'LEN HISTORY AFTER: {len(history)}')
-        print(history)
-        self.random_item.set(random.choice(self.menu)) 
+        #print(f"LEN HISTORY BEFORE: {len(self.history)}")
+        #print(self.menu)
+        #print(f'The target is: {self.random_item.get()}')
+        #controller.get_target_frame(MenuPage).user_state.total_clicks += 1
+        #print(controller.get_target_frame(MenuPage).user_state.total_clicks)
+        #self.history.append([self.random_item.get(), list(filter(("----").__ne__, currentmenu)).index(self.random_item.get())])
+        print(f"before target update: {self.target_item.get()}")
+        self.idx_session += 1
+        self.target_item.set(self.targets_history[self.idx_session])
+        print(f"after target update: {self.target_item.get()}")
+        #print(f"len of the history before updating history: {len(controller.get_target_frame(MenuPage).user_state.history)}")
+        #print(len(self.history))
+        #self.history.append([self.random_item.get(), list(filter(("----").__ne__, currentmenu)).index(self.random_item.get())])
+        #controller.get_target_frame(MenuPage).user_state.history = self.history
+        #controller.get_target_frame(MenuPage).user_state.history.append(
+        #    [self.random_item.get(), list(filter(("----").__ne__, controller.get_target_frame(MenuPage).menu)).index(self.random_item.get())]
+        #)
+        #print(len(self.history))
+        #print(f"len of the history after updating history: {len(controller.get_target_frame(MenuPage).user_state.history)}")
+        #controller.get_target_frame(MenuPage).user_state.total_clicks += 1
+        #print(f'LEN HISTORY AFTER: {len(history)}')
+        #print(history)
+        #self.random_item.set(random.choice(self.menu)) 
         self.button.pack_forget()
-        self.button  = tk.Button(self, text=self.random_item.get(),
+        self.button  = tk.Button(self, text=self.target_item.get(), height=3, width=15, font= font.Font(family="Verdana", size=10, weight="bold"),
                            command=lambda: [self.awareness_time(), controller.show_frame(MenuPage), self.update_target(controller)])
         controller.get_target_frame(MenuPage).display_time_menu.set(time.time())
         self.button.pack()
@@ -245,17 +276,23 @@ class MenuPage(tk.Frame):
         self.display_time_menu = tk.DoubleVar()
         self.select_time = tk.DoubleVar()
         self.select_time.set('0')
+        self.idx_click = 0
         self.menu_state = MenuState(currentmenu, associations)
-        self.user_state = UserState(freqdist, total_clicks, history)
-        self.root_state = State(menu_state,user_state, exposed=True)
-        self.my_oracle = UserOracle(maxdepth, associations=menu_state.associations)
-        self.completion_times = my_oracle.get_individual_rewards(root_state)[1] # Initial completion time for current menu
-        self.avg_time = sum([a * b for a, b in zip(weights, completion_times)])
+        self.user_state = UserState(freqdist, total_clicks, history, 5.0, int(self.idx_click))
+        #print(f'user total clicks: {self.user_state.total_clicks}')
+        self.root_state = State(self.menu_state,self.user_state, exposed=True)
+        self.my_oracle = UserOracle(maxdepth, associations=self.menu_state.associations)
+        self.completion_times = self.my_oracle.get_individual_rewards(self.root_state)[1] # Initial completion time for current menu
+        self.avg_time = sum([a * b for a, b in zip(weights, self.completion_times)])
         self.menu = currentmenu
+        self.freqdist = freqdist
+        self.total_clicks = total_clicks
+        #self.history = history
         self.button_grd = ButtonGrid(self, 1, [""])
 
         for item in self.menu:
             self.button_grd.add_row([(item, lambda: [controller.show_frame(TargetItemPage), self.selection_time() ,self.update_menu(controller)])])
+            #self.button_grd.add_row([(item, lambda: [controller.show_frame(TargetItemPage), self.update_menu(controller)])])
 
         self.button_grd.pack()
 
@@ -265,23 +302,38 @@ class MenuPage(tk.Frame):
     def selection_time(self):
         self.select_time.set(time.time())
         self.select_time.set(time.time() - self.display_time_menu.get())
-        print(f"Selection time of the target item:{self.select_time.get()}")
+        #self.user_state = UserState(freqdist, total_clicks, history, self.select_time.get())
+        #print(f"Selection time of the target item:{self.select_time.get()}")
     
     # TODO: update all the attributes of the menu!!
     def update_menu(self, controller):
         #random.shuffle(self.menu)
-        #set user_state, menu_state, root_state, my_oracle
-        self.menu = best_adaptation(root_state, my_oracle, weights, use_network, vn_name, timebudget)
-        self.menu_state = MenuState(self.menu, associations)
-        # TODO: take into account the selection time of target item
-        self.user_state = UserState(freqdist, total_clicks, history)
-        self.root_state = State(menu_state,user_state, exposed=True)
-        self.my_oracle = UserOracle(maxdepth, associations=menu_state.associations)
+        # TODO: taking into account the case when no improvement is foumd
+        print(f"Selection time of the target item just before update the user state:{self.select_time.get()}")
+        self.idx_click += 1
+        print(f"session num: {self.idx_click}")
+        print(f"before update: {len(self.user_state.history)}")
+        self.user_state.update(self.menu, self.select_time.get(), self.idx_click)
+        self.user_state.update_freqdist(self.menu)
+        print(f"after update: {len(self.user_state.history)}")
+        print(f"last item added to the history: {self.user_state.history[-1]}")
+        #print(f'after: {len(self.user_state.history)}')
+        #self.user_state = UserState(freqdist, total_clicks, history, self.select_time.get())
+        self.root_state = State(self.menu_state,self.user_state, exposed=True)
+        self.my_oracle = UserOracle(maxdepth, associations=self.menu_state.associations)
+        print(f"history after selecting the item in the menu: {len(self.user_state.history)}")
+        print(f"the number of total clicks is: {self.user_state.total_clicks}")
+        self.menu = best_adaptation(self.root_state, self.my_oracle, weights, use_network, vn_name, timebudget)
+        while self.menu is None:
+            print(f"hello dude!!")
+            self.menu = best_adaptation(self.root_state, self.my_oracle, weights, use_network, vn_name, timebudget)
+        print(f"The new menu is: {self.menu}")
         self.button_grd.pack_forget()
         self.button_grd = ButtonGrid(self, 1, [""])
 
         for item in self.menu:
             self.button_grd.add_row([(item, lambda: [ self.selection_time(), controller.show_frame(TargetItemPage), self.update_menu(controller)])])
+            #self.button_grd.add_row([(item, lambda: [controller.show_frame(TargetItemPage), self.update_menu(controller)])])
         controller.get_target_frame(TargetItemPage).display_time_target.set(time.time())
         self.button_grd.pack()
         
@@ -291,3 +343,4 @@ if __name__ == "__main__":
     #best_adaptation(root_state, my_oracle, weights, use_network, vn_name, timebudget)
     session = Root()
     session.mainloop()
+    
