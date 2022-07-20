@@ -128,7 +128,7 @@ def step_func(state, oracle, weights, objective, use_network, network_name, time
             avg_original_time = max(original_times)
         elif objective == "SAVAGE":
             avg_reward = best_child.max_regret 
-            print(f"max regret of the best child: {avg_reward}")
+            #print(f"max regret of the best child: {avg_reward}")
             avg_time = max(times)
             avg_original_time = max(original_times)
             
@@ -167,14 +167,24 @@ def best_adaptation(root_state, oracle, weights, use_network, network_name, time
                 bestmenu = result[1]
         
         #print("\nPlanning completed. \n\n[[Menu], Step #, Is Exposed, Original Avg Time, Final Avg Time, Reward]")
-        for step in bestmenu:
+        for i,step in enumerate(bestmenu):
+            #print(i, len(bestmenu))
             print(step)
-            if step[1] == 1:
-                next_menu = step[0]
-            if step[2]: 
-                #print(f"The best menu is: {step[0]}")
-                print(f"Let's do this adaptation: {next_menu}")
-                return next_menu
+            if objective == "SAVAGE":
+                
+                if step[1] == 1:
+                    next_menu = step[0]
+                if step[1] == len(bestmenu) and step[5] == 0.0:
+                    print(f"Let's do this adaptation:{next_menu}")
+                    return next_menu
+            else:
+                
+                if step[1] == 1:
+                    next_menu = step[0]
+                if step[1] == len(bestmenu) and step[2]: 
+                    #print(f"The best menu is: {step[0]}")
+                    print(f"Let's do this adaptation: {next_menu}")
+                    return next_menu
 
 
 class Root(tk.Tk):
@@ -277,16 +287,16 @@ class MenuPage(tk.Frame):
         self.select_time = tk.DoubleVar()
         self.select_time.set('0')
         self.idx_click = 0
-        self.menu_state = MenuState(currentmenu, associations)
-        self.user_state = UserState(freqdist, total_clicks, history, 5.0, int(self.idx_click))
+        self.menu = currentmenu
+        self.freqdist = freqdist
+        self.total_clicks = total_clicks
+        self.menu_state = MenuState(self.menu, associations)
+        self.user_state = UserState(self.freqdist, self.total_clicks, history, 5.0, int(self.idx_click))
         #print(f'user total clicks: {self.user_state.total_clicks}')
         self.root_state = State(self.menu_state,self.user_state, exposed=True)
         self.my_oracle = UserOracle(maxdepth, associations=self.menu_state.associations)
         self.completion_times = self.my_oracle.get_individual_rewards(self.root_state)[1] # Initial completion time for current menu
         self.avg_time = sum([a * b for a, b in zip(weights, self.completion_times)])
-        self.menu = currentmenu
-        self.freqdist = freqdist
-        self.total_clicks = total_clicks
         #self.history = history
         self.button_grd = ButtonGrid(self, 1, [""])
 
@@ -309,6 +319,7 @@ class MenuPage(tk.Frame):
     def update_menu(self, controller):
         #random.shuffle(self.menu)
         # TODO: taking into account the case when no improvement is foumd
+        print(f"check the menu: {self.menu}")
         print(f"Selection time of the target item just before update the user state:{self.select_time.get()}")
         self.idx_click += 1
         print(f"session num: {self.idx_click}")
@@ -319,6 +330,7 @@ class MenuPage(tk.Frame):
         print(f"last item added to the history: {self.user_state.history[-1]}")
         #print(f'after: {len(self.user_state.history)}')
         #self.user_state = UserState(freqdist, total_clicks, history, self.select_time.get())
+        self.menu_state = MenuState(self.menu, associations)
         self.root_state = State(self.menu_state,self.user_state, exposed=True)
         self.my_oracle = UserOracle(maxdepth, associations=self.menu_state.associations)
         print(f"history after selecting the item in the menu: {len(self.user_state.history)}")
