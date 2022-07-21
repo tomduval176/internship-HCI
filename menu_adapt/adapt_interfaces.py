@@ -5,6 +5,7 @@ import time, random
 import argparse
 import mcts
 import utility
+from collections import Counter
 from useroracle import UserStrategy, UserOracle
 from state import State, MenuState, UserState
 from tkinter import font
@@ -26,6 +27,7 @@ parser.add_argument("--usenetwork", "-nn", help="Use neural network", action='st
 parser.add_argument("--valuenet","-vn",help="Value network name")
 parser.add_argument("--case", "-c", help="Use case e.g. 5items, 10items, toy (combination of menu, assoc, history)")
 parser.add_argument("--objective", "-O", help="Objective to use", choices = ["average","optimistic","conservative", "savage"], default="average")
+parser.add_argument("--model_exp", "-exp", help="The model to use for the experiment", choices = ["static", "frequency", "mcts"], default = "mcts")
 #parser.add_argument("--menu", "-m", help="The future menu displayed", type=str)
 args = parser.parse_args()
 
@@ -46,6 +48,7 @@ else:
 
 #Objective function to be used; default is average
 objective = args.objective.upper()
+model_exp = args.model_exp.upper()
 
 # Change PWD to main directory
 pwd = os.chdir(os.path.dirname(__file__))
@@ -251,29 +254,11 @@ class TargetItemPage(tk.Frame):
         #print(f"Time to become aware of the target item: {self.select_time_target.get()}")
         
     def update_target(self, controller):
-        #print(f"LEN HISTORY BEFORE: {len(self.history)}")
-        #print(self.menu)
-        #print(f'The target is: {self.random_item.get()}')
-        #controller.get_target_frame(MenuPage).user_state.total_clicks += 1
-        #print(controller.get_target_frame(MenuPage).user_state.total_clicks)
-        #self.history.append([self.random_item.get(), list(filter(("----").__ne__, currentmenu)).index(self.random_item.get())])
+    
         print(f"before target update: {self.target_item.get()}")
         self.idx_session += 1
         self.target_item.set(self.targets_history[self.idx_session])
         print(f"after target update: {self.target_item.get()}")
-        #print(f"len of the history before updating history: {len(controller.get_target_frame(MenuPage).user_state.history)}")
-        #print(len(self.history))
-        #self.history.append([self.random_item.get(), list(filter(("----").__ne__, currentmenu)).index(self.random_item.get())])
-        #controller.get_target_frame(MenuPage).user_state.history = self.history
-        #controller.get_target_frame(MenuPage).user_state.history.append(
-        #    [self.random_item.get(), list(filter(("----").__ne__, controller.get_target_frame(MenuPage).menu)).index(self.random_item.get())]
-        #)
-        #print(len(self.history))
-        #print(f"len of the history after updating history: {len(controller.get_target_frame(MenuPage).user_state.history)}")
-        #controller.get_target_frame(MenuPage).user_state.total_clicks += 1
-        #print(f'LEN HISTORY AFTER: {len(history)}')
-        #print(history)
-        #self.random_item.set(random.choice(self.menu)) 
         self.button.pack_forget()
         self.button  = tk.Button(self, text=self.target_item.get(), height=3, width=15, font= font.Font(family="Verdana", size=10, weight="bold"),
                            command=lambda: [self.awareness_time(), controller.show_frame(MenuPage), self.update_target(controller)])
@@ -335,10 +320,18 @@ class MenuPage(tk.Frame):
         self.my_oracle = UserOracle(maxdepth, associations=self.menu_state.associations)
         print(f"history after selecting the item in the menu: {len(self.user_state.history)}")
         print(f"the number of total clicks is: {self.user_state.total_clicks}")
-        self.menu = best_adaptation(self.root_state, self.my_oracle, weights, use_network, vn_name, timebudget)
-        while self.menu is None:
-            print(f"hello dude!!")
+        if model_exp == "STATIC":
+            self.menu = currentmenu
+        elif model_exp == "FREQUENCY":
+            print(self.user_state.history)
+            hist_freq = [item[0] for item in self.user_state.history]
+            self.menu = [item for items, c in Counter(hist_freq).most_common() for item in [items]]
+            print(self.menu)
+        elif model_exp == "MCTS":
             self.menu = best_adaptation(self.root_state, self.my_oracle, weights, use_network, vn_name, timebudget)
+            while self.menu is None:
+                print(f"hello dude!!")
+                self.menu = best_adaptation(self.root_state, self.my_oracle, weights, use_network, vn_name, timebudget)
         print(f"The new menu is: {self.menu}")
         self.button_grd.pack_forget()
         self.button_grd = ButtonGrid(self, 1, [""])

@@ -90,6 +90,7 @@ def compute_associations(menu):
     # >>> 1 - spatial.distance.cosine(ft.get_word_vector('asparagus'),ft.get_word_vector('aubergine'))
 
 def load_activations(history):
+    print("HELLLO")
     total_clicks = len(history)
     activations = {} # Activation per target per location
     duration_between_clicks = 20.0 # Wait time between two clicks
