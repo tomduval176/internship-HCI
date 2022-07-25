@@ -177,6 +177,11 @@ def load_menu (filename):
         menu.append(line)
     return menu
 
+def save_selection_time(time, filename):
+    f = open(filename, "a")
+    f.write(str(time) + "\n")
+    f.close()
+
 # Returns association matrix for a menu using the associations dictionary
 def get_association_matrix(menu, associations):
     association_matrix = []

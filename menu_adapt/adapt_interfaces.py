@@ -11,6 +11,7 @@ from state import State, MenuState, UserState
 from tkinter import font
 import tkinter as tk 
 from tk_tools import ButtonGrid
+from design_interfaces import NewButtonGrid
 
 #LARGE_FONT = ('Helvetica', 20)
 parser = argparse.ArgumentParser()
@@ -28,7 +29,7 @@ parser.add_argument("--valuenet","-vn",help="Value network name")
 parser.add_argument("--case", "-c", help="Use case e.g. 5items, 10items, toy (combination of menu, assoc, history)")
 parser.add_argument("--objective", "-O", help="Objective to use", choices = ["average","optimistic","conservative", "savage"], default="average")
 parser.add_argument("--model_exp", "-exp", help="The model to use for the experiment", choices = ["static", "frequency", "mcts"], default = "mcts")
-#parser.add_argument("--menu", "-m", help="The future menu displayed", type=str)
+parser.add_argument("--exp_num", "-n", help="The number of the experiment", default = "1")
 args = parser.parse_args()
 
 use_network = True if args.usenetwork else False
@@ -241,7 +242,7 @@ class TargetItemPage(tk.Frame):
         self.target_item = tk.StringVar()
         self.target_item.set(self.targets_history[1])
         test_font = font.Font(size=20)
-        self.button = tk.Button(self, text=self.target_item.get(),
+        self.button = tk.Button(self, text=self.target_item.get(), height=3, width=15, font= font.Font(family="Verdana", size=10, weight="bold"),
                            command=lambda: [controller.show_frame(MenuPage), self.awareness_time(), self.update_target(controller)])
         self.button.pack()
         
@@ -283,7 +284,7 @@ class MenuPage(tk.Frame):
         self.completion_times = self.my_oracle.get_individual_rewards(self.root_state)[1] # Initial completion time for current menu
         self.avg_time = sum([a * b for a, b in zip(weights, self.completion_times)])
         #self.history = history
-        self.button_grd = ButtonGrid(self, 1, [""])
+        self.button_grd = NewButtonGrid(self, 1, [""])
 
         for item in self.menu:
             self.button_grd.add_row([(item, lambda: [controller.show_frame(TargetItemPage), self.selection_time() ,self.update_menu(controller)])])
@@ -306,6 +307,7 @@ class MenuPage(tk.Frame):
         # TODO: taking into account the case when no improvement is foumd
         print(f"check the menu: {self.menu}")
         print(f"Selection time of the target item just before update the user state:{self.select_time.get()}")
+        utility.save_selection_time(self.select_time.get(), "output/selection_time_" + args.model_exp + "_" + args.objective + "_" + args.exp_num + ".txt")
         self.idx_click += 1
         print(f"session num: {self.idx_click}")
         print(f"before update: {len(self.user_state.history)}")
@@ -334,7 +336,7 @@ class MenuPage(tk.Frame):
                 self.menu = best_adaptation(self.root_state, self.my_oracle, weights, use_network, vn_name, timebudget)
         print(f"The new menu is: {self.menu}")
         self.button_grd.pack_forget()
-        self.button_grd = ButtonGrid(self, 1, [""])
+        self.button_grd = NewButtonGrid(self, 1, [""])
 
         for item in self.menu:
             self.button_grd.add_row([(item, lambda: [ self.selection_time(), controller.show_frame(TargetItemPage), self.update_menu(controller)])])
