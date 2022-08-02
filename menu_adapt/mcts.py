@@ -47,7 +47,7 @@ class TreeNode():
 
 # MCTS tree
 class mcts():
-    def __init__(self, useroracle, weights, objective, use_network, network_name = None, limit_type = 'time', time_limit=None, num_iterations=None, exploration_const=1.0/math.sqrt(2),
+    def __init__(self, useroracle, weights, objective, use_network, network_name = None, limit_type = 'iterations', time_limit=None, num_iterations=None, exploration_const=1.0/math.sqrt(2),
                  rollout_policy=random_policy):
         
         self.oracle = useroracle # User oracle used
@@ -87,7 +87,7 @@ class mcts():
             while time.time() < time_limit:
                 self.execute_round()            
         elif self.limit_type == 'iterations':
-            for _ in self.num_iterations:
+            for _ in range(self.num_iterations):
                 self.execute_round()
 
         adaptation_probability = self.get_adaptation_probabilities(self.root, 0.0)

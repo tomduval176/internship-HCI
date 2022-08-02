@@ -228,6 +228,7 @@ class UserState():
         self.idx_session = idx_session
         self.selection_time = selection_time
         item_history = [row[0] for row in self.history]
+        self.time_history = [20]*int(self.total_clicks)
 
         self.recall_practice = {} # Count of clicks at last-seen position (resets when position changes)
         self.activations = self.get_activations(self.selection_time, self.idx_session)
@@ -243,19 +244,21 @@ class UserState():
     # TODO: make a new function for the empirical evaluation
     def get_activations(self, selection_time, idx_session):
         activations = {} # Activation per target per location
-        #duration_between_clicks = 20.0 # Wait time between two clicks
-        duration_between_clicks = selection_time
+        #duration_between_clicks = 20.0 
+        #duration_between_clicks = selection_time
+        self.time_history.append(selection_time)
         session_interval = 50.0 # Wait time between 2 sessions
         session_click_length = 20 # Clicks per session
         total_sessions = math.ceil(self.total_clicks/session_click_length) # Number of sessions so far
         #for i in range(0, int(self.total_clicks)):
-        session = math.ceil((idx_session+1)/session_click_length) # Session index
-        item = self.history[idx_session][0]
-        position = self.history[idx_session][1]
-        if item not in activations.keys(): activations[item] = {position:0} # Item has not been seen yet. Add to dictionary
-        if position not in activations[item].keys(): activations[item][position] = 0 # Item not seen at this position yet. Add to item's dictionary
-        time_difference = duration_between_clicks*(self.total_clicks - idx_session) + (total_sessions - session)*session_interval # Difference between time now and time of click
-        activations[item][position] += pow(time_difference, -0.5)
+        for i in range(0, int(self.total_clicks)):
+            session = math.ceil((i+1)/session_click_length) # Session index
+            item = self.history[i][0]
+            position = self.history[i][1]
+            if item not in activations.keys(): activations[item] = {position:0} # Item has not been seen yet. Add to dictionary
+            if position not in activations[item].keys(): activations[item][position] = 0 # Item not seen at this position yet. Add to item's dictionary
+            time_difference = self.time_history[i]*(self.total_clicks - i) + (total_sessions - session)*session_interval # Difference between time now and time of click
+            activations[item][position] += pow(time_difference, -0.5)
         return activations
 
 

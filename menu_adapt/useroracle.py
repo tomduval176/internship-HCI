@@ -20,6 +20,7 @@ class UserOracle():
         self.surprisecost = 0.2 # 
         self.point_const = 0.4
         self.associations = associations
+        
     # Reading cost: modulated by experience
     def read(self,item, menu, novice = False):
         if item == self.separator:

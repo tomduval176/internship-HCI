@@ -2,14 +2,17 @@ tomato
 potato
 gloves
 shoes
+----
 chair
 bikini
 table
 carrot
+----
 onion
 skirt
 panda
 rabbit
+----
 sofa
 beans
 tiger

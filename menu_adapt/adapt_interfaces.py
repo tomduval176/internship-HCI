@@ -52,7 +52,7 @@ objective = args.objective.upper()
 model_exp = args.model_exp.upper()
 
 # Change PWD to main directory
-pwd = os.chdir(os.path.dirname(__file__))
+#pwd = os.chdir(os.path.dirname(__file__))
 
 # Set-up the menu instance
 currentmenu = utility.load_menu("./input/" + args.menu) # load menu items from text file
@@ -111,12 +111,14 @@ ray.init()
 def step_func(state, oracle, weights, objective, use_network, network_name, timebudget):
     results = []
     original_times = oracle.get_individual_rewards(state)[1]
-    tree = mcts.mcts(oracle, weights, objective, use_network, network_name, time_limit=timebudget)
+    tree = mcts.mcts(oracle, weights, objective, use_network, network_name, time_limit=timebudget,num_iterations=args.iterations)
     node = None
     while not oracle.is_terminal(state):
         _, best_child, _, _ = tree.search(state, node) # search returns selected (best) adaptation, child state, avg rewards
         node = best_child
         state = best_child.state
+        #print(state.user_state.total_clicks)
+        #print(state.user_state.activations)
         [rewards, times] = oracle.get_individual_rewards(state)
         if objective == "AVERAGE":
             avg_reward = sum([a*b for a,b in zip(weights, rewards)]) # Take average reward 
@@ -178,12 +180,15 @@ def best_adaptation(root_state, oracle, weights, use_network, network_name, time
                 
                 if step[1] == 1:
                     next_menu = step[0]
-                if step[1] == len(bestmenu) and step[5] == 0.0:
+                #if step[1] == len(bestmenu) and step[2]:
+                if step[2]:
+                    next_menu = step[0]
                     print(f"Let's do this adaptation:{next_menu}")
                     return next_menu
+                
             else:
                 
-                if step[1] == 1:
+                if step[1] == 5:
                     next_menu = step[0]
                 if step[1] == len(bestmenu) and step[2]: 
                     #print(f"The best menu is: {step[0]}")
@@ -315,6 +320,7 @@ class MenuPage(tk.Frame):
         self.user_state.update_freqdist(self.menu)
         print(f"after update: {len(self.user_state.history)}")
         print(f"last item added to the history: {self.user_state.history[-1]}")
+        print(self.user_state.activations)
         #print(f'after: {len(self.user_state.history)}')
         #self.user_state = UserState(freqdist, total_clicks, history, self.select_time.get())
         self.menu_state = MenuState(self.menu, associations)
