@@ -228,7 +228,7 @@ class UserState():
         self.idx_session = idx_session
         self.selection_time = selection_time
         item_history = [row[0] for row in self.history]
-        self.time_history = [20]*int(self.total_clicks)
+        self.time_history = [5]*int(self.total_clicks)
 
         self.recall_practice = {} # Count of clicks at last-seen position (resets when position changes)
         self.activations = self.get_activations(self.selection_time, self.idx_session)
@@ -266,10 +266,12 @@ class UserState():
     # Method to update user state when the time-step is incremented (after taking an adaptation)
     def update(self, menu, selection_time, idx_session):
         num_clicks = len(self.history)
+        #num_clicks = 20
         self.selection_time = selection_time
         self.idx_session = idx_session
         # First we add new_clicks
         clicks_to_add = self.simple_history()[-num_clicks:]
+        #print(f"click to add: {clicks_to_add}")
 
         item_list = list(filter(("----").__ne__, menu)) # new menu without separator
         click = clicks_to_add[idx_session]

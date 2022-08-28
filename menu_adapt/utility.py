@@ -10,6 +10,7 @@ import gensim.downloader as api
 #To compute cosine similarity
 from scipy import spatial
 import math
+import pickle
 
 # reads a log file and returns a frequency distribution as a dict
 def load_click_distribution (menu, filename, normalize = True):
@@ -181,6 +182,16 @@ def save_selection_time(time, filename):
     f = open(filename, "a")
     f.write(str(time) + "\n")
     f.close()
+    
+def save_activations(dict, filename):
+    with open(filename, "wb") as f:
+        pickle.dump(dict, f)
+        
+def load_activations(filename):
+    with open(filename, "rb") as f:
+        loaded_dict = pickle.load(f)
+    return loaded_dict
+        
 
 # Returns association matrix for a menu using the associations dictionary
 def get_association_matrix(menu, associations):

@@ -27,9 +27,9 @@ parser.add_argument("--pp", type=int, help="number of parallel processes", defau
 parser.add_argument("--usenetwork", "-nn", help="Use neural network", action='store_true' )
 parser.add_argument("--valuenet","-vn",help="Value network name")
 parser.add_argument("--case", "-c", help="Use case e.g. 5items, 10items, toy (combination of menu, assoc, history)")
-parser.add_argument("--objective", "-O", help="Objective to use", choices = ["average","optimistic","conservative", "savage"], default="average")
-parser.add_argument("--model_exp", "-exp", help="The model to use for the experiment", choices = ["static", "frequency", "mcts"], default = "mcts")
-parser.add_argument("--exp_num", "-n", help="The number of the experiment", default = "1")
+parser.add_argument("--objective", "-O", help="Objective to use", choices = ["average","optimistic","conservative", "savage", "none"], default="average")
+parser.add_argument("--model_exp", "-model", help="The model to use for the experiment", choices = ["static", "frequency", "mcts"], default = "mcts")
+parser.add_argument("--exp_num", "-exp", help="The number of the experiment", default = "1")
 args = parser.parse_args()
 
 use_network = True if args.usenetwork else False
@@ -188,7 +188,7 @@ def best_adaptation(root_state, oracle, weights, use_network, network_name, time
                 
             else:
                 
-                if step[1] == 5:
+                if step[1] == len(bestmenu):
                     next_menu = step[0]
                 if step[1] == len(bestmenu) and step[2]: 
                     #print(f"The best menu is: {step[0]}")
@@ -242,7 +242,8 @@ class TargetItemPage(tk.Frame):
         label.pack()
         #self.random_item = tk.StringVar()
         #self.random_item.set(random.choice(self.menu))
-        self.targets_history = self.simple_history()[-20:]
+        #self.targets_history = self.simple_history()[-20:]
+        self.targets_history = ["potato","potato", "gloves", "tiger", "shoes", "chair", "bikini", "table", "carrot", "onion", "skirt", "tomato"]
         self.idx_session = 1
         self.target_item = tk.StringVar()
         self.target_item.set(self.targets_history[1])
@@ -270,6 +271,7 @@ class TargetItemPage(tk.Frame):
                            command=lambda: [self.awareness_time(), controller.show_frame(MenuPage), self.update_target(controller)])
         controller.get_target_frame(MenuPage).display_time_menu.set(time.time())
         self.button.pack()
+        
         
 class MenuPage(tk.Frame):
     def __init__(self, parent, controller):
@@ -321,6 +323,7 @@ class MenuPage(tk.Frame):
         print(f"after update: {len(self.user_state.history)}")
         print(f"last item added to the history: {self.user_state.history[-1]}")
         print(self.user_state.activations)
+        utility.save_activations(self.user_state.activations, "output/activations" + "activations_" + args.model_exp + "_" + args.objective + "_" + args.exp_num + ".txt")
         #print(f'after: {len(self.user_state.history)}')
         #self.user_state = UserState(freqdist, total_clicks, history, self.select_time.get())
         self.menu_state = MenuState(self.menu, associations)
@@ -330,16 +333,28 @@ class MenuPage(tk.Frame):
         print(f"the number of total clicks is: {self.user_state.total_clicks}")
         if model_exp == "STATIC":
             self.menu = currentmenu
+            if self.user_state.history[-1][0] == "skirt":
+                controller.destroy()
         elif model_exp == "FREQUENCY":
-            print(self.user_state.history)
+            if self.user_state.history[-1][0] == "skirt":
+                controller.destroy()
+            #print(self.user_state.history)
             hist_freq = [item[0] for item in self.user_state.history]
             self.menu = [item for items, c in Counter(hist_freq).most_common() for item in [items]]
-            print(self.menu)
+            #print(self.menu)
         elif model_exp == "MCTS":
+            i = 0
             self.menu = best_adaptation(self.root_state, self.my_oracle, weights, use_network, vn_name, timebudget)
             while self.menu is None:
+                i+=1
+                print(i)
+                if i>6:
+                    controller.destroy()
+                    break
                 print(f"hello dude!!")
                 self.menu = best_adaptation(self.root_state, self.my_oracle, weights, use_network, vn_name, timebudget)
+        if self.user_state.history[-1][0] == "skirt":
+                controller.destroy()
         print(f"The new menu is: {self.menu}")
         self.button_grd.pack_forget()
         self.button_grd = NewButtonGrid(self, 1, [""])

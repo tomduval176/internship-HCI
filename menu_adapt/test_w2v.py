@@ -1,5 +1,5 @@
 import utility
 
-menu = utility.load_menu("input/menu_15items.txt")
-utility.load_associations(menu, "input/associations_15items.txt")
-utility.load_w2v_associations(menu)
+dic = utility.load_activations("output/activations_frequency_none_1.txt")
+print(dic)
+
