@@ -1,2 +1,2 @@
 # HCI_RL
-code related to the paper : Adapting User Interfaces with Model-based Reinforcement Learning.
+Code related to my internship at CNRS in Singapore and adapted from a research paper : Adaptive interfaces using model-based Reinforcement Learning.
